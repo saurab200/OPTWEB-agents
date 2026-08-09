@@ -36,4 +36,26 @@ describe("runWithConcurrencyLimit", () => {
     const results = await runWithConcurrencyLimit(tasks, 10);
     expect(results).toEqual(["a", "b"]);
   });
+
+  it("paces each worker's requests by delayMs (regression: concurrency alone didn't prevent quota exhaustion mid-run)", async () => {
+    const starts: number[] = [];
+    const tasks = Array.from({ length: 4 }, () => async () => {
+      starts.push(Date.now());
+      return null;
+    });
+    const t0 = Date.now();
+    await runWithConcurrencyLimit(tasks, 1, 40); // single worker: fully serial, easy to assert spacing
+    const gaps = starts.slice(1).map((t, i) => t - starts[i]);
+    for (const gap of gaps) {
+      expect(gap).toBeGreaterThanOrEqual(35); // small tolerance below 40ms for timer jitter
+    }
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(35 * (tasks.length - 1));
+  });
+
+  it("does not pace when delayMs is 0 (default, backward compatible)", async () => {
+    const tasks = Array.from({ length: 5 }, () => () => Promise.resolve(1));
+    const t0 = Date.now();
+    await runWithConcurrencyLimit(tasks, 5);
+    expect(Date.now() - t0).toBeLessThan(20);
+  });
 });

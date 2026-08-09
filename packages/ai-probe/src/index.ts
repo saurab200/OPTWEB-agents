@@ -14,10 +14,24 @@ import { PROVIDER_MODELS } from "./providers.js";
 import { runWithConcurrencyLimit } from "./concurrency.js";
 
 // See concurrency.ts: bounding in-flight requests avoids tripping the
-// gateway's free-tier rate limit that a full Promise.all fan-out hits.
+// gateway's free-tier rate limit that a full Promise.all fan-out hits, and
+// pacing request starts avoids exhausting a per-minute quota partway
+// through a run (concurrency alone wasn't enough — see concurrency.ts).
 const MAX_CONCURRENT_REQUESTS = 3;
+const REQUEST_PACING_MS = 500;
 
 const EXCERPT_MAX_CHARS = 400;
+
+// Vercel AI Gateway caches identical (model, prompt) requests server-side —
+// the single biggest lever for "cost less credit" here, since re-running
+// probe() on the same business during dev/testing (or a corpus:run re-run)
+// costs nothing extra within the window instead of re-spending real credit.
+// 24h is long enough to cover a full dev session or CI re-run, short enough
+// that production usage (probing the same business at most a few times a
+// week) never serves a meaningfully stale answer. Set to 0 to force a fresh
+// call, e.g. when verifying that a real prompt/model change actually
+// altered the AI's response rather than replaying a cached one.
+const DEFAULT_CACHE_TTL_SECONDS = 86400;
 
 const RESPONSE_SCHEMA = z.object({
   answer: z.string().describe("Your natural-language answer to the question, exactly as you'd say it to a real user."),
@@ -29,6 +43,12 @@ const RESPONSE_SCHEMA = z.object({
 export interface ProbeOptions {
   /** Override the default model for one or more providers, e.g. once paid gateway credits are available. */
   models?: Partial<Record<AiProvider, string>>;
+  /** Gateway response cache TTL in seconds. Default DEFAULT_CACHE_TTL_SECONDS (24h). 0 disables caching. */
+  cacheTtlSeconds?: number;
+  /** Delay in ms between paced request starts. Default REQUEST_PACING_MS (500ms). 0 disables pacing — only
+   * safe with a mocked/fake network (tests); against the real gateway this reintroduces the quota-exhaustion
+   * failure documented in concurrency.ts. */
+  pacingMs?: number;
 }
 
 async function runOneAttempt(
@@ -36,12 +56,16 @@ async function runOneAttempt(
   model: string,
   query: string,
   business: BusinessIdentity,
+  cacheTtlSeconds: number,
 ): Promise<ProbeAttempt> {
   try {
     const { object } = await generateObject({
       model,
       schema: RESPONSE_SCHEMA,
       prompt: `Answer this question naturally, exactly as you would for a real user asking casually: "${query}"`,
+      ...(cacheTtlSeconds > 0
+        ? { providerOptions: { gateway: { cacheControl: `max-age=${cacheTtlSeconds}` } } }
+        : {}),
     });
 
     const match = matchBusiness(object.mentioned_businesses, business);
@@ -108,16 +132,18 @@ function computeProbeConfidence(attempts: ProbeAttempt[]): ProbeResult["probe_co
  */
 export async function probe(business: BusinessIdentity, options: ProbeOptions = {}): Promise<ProbeResult> {
   const queries = buildQueries(business);
+  const cacheTtlSeconds = options.cacheTtlSeconds ?? DEFAULT_CACHE_TTL_SECONDS;
 
   const tasks: (() => Promise<ProbeAttempt>)[] = [];
   for (const provider of AI_PROVIDERS) {
     const model = options.models?.[provider] ?? PROVIDER_MODELS[provider];
     for (const query of queries) {
-      tasks.push(() => runOneAttempt(provider, model, query, business));
+      tasks.push(() => runOneAttempt(provider, model, query, business, cacheTtlSeconds));
     }
   }
 
-  const attempts = await runWithConcurrencyLimit(tasks, MAX_CONCURRENT_REQUESTS);
+  const pacingMs = options.pacingMs ?? REQUEST_PACING_MS;
+  const attempts = await runWithConcurrencyLimit(tasks, MAX_CONCURRENT_REQUESTS, pacingMs);
 
   const probe_issues = attempts
     .filter((a) => a.error !== null)

@@ -85,24 +85,46 @@ just a card on file — set a spend cap in the AI Gateway dashboard before
 using them.
 
 **Corpus fixtures not yet generated:** unlike Scanner and Scoring,
-`packages/ai-probe/fixtures/probe_results/` is currently empty — real
-`corpus:run` output couldn't be captured yet because of the rate-limit issue
-below. Once gateway access is reliable, run `corpus:run` and add
+`packages/ai-probe/fixtures/probe_results/` is currently empty. Two real
+`corpus:run` attempts (2026-08-09) both produced `probe_confidence: "low"`
+results with 11-16 of 16 attempts failing — not committed as fixtures,
+since flaky data would make the property tests flaky by construction. Once
+a run comes back reliable, run `corpus:run` and add
 `fixtures/probe_results/*.json`-based property tests following the exact
 pattern in `packages/scanner/test/corpus.test.ts`; don't fabricate expected
 fixture data in the meantime — that would violate the "real data, not
 synthetic fixtures" principle this whole project is built on.
 
-**Known limitation, discovered via real testing, not hypothetical:** firing
-all `4 providers x 4 queries = 16` requests for one `probe()` call at once
-trips the free tier's rate limit even for models that succeed reliably one
-at a time. `packages/ai-probe/src/concurrency.ts` bounds this to 3 in-flight
-requests, which helps but doesn't eliminate it — free-tier rate limits are
-cumulative across an account's usage, not just within one call. Real-world
-reliability requires either paid gateway credits or accepting a
-`probe_confidence: "low"` result with `probe_issues` explaining exactly
-which provider/query pairs failed and why (never a crash, never a silent
-wrong answer — same guardrail as Scanner).
+**Known limitation, discovered via two rounds of real testing, not
+hypothetical — read this before spending more credit chasing it:**
+1. Firing all `4 providers x 4 queries = 16` requests for one `probe()` call
+   via a single `Promise.all` trips the free tier's rate limit even for
+   models that succeed reliably one at a time. Fixed by bounding concurrency
+   to 3 in-flight requests (`packages/ai-probe/src/concurrency.ts`).
+2. Concurrency limiting alone was insufficient: a live run showed a business
+   probed *second* in the same `corpus:run` fail on every provider,
+   including one that had just succeeded 4/4 on the business probed first —
+   the signature of a per-minute quota exhausting partway through a burst.
+   Fixed by adding a paced delay (`REQUEST_PACING_MS`, default 500ms)
+   between request starts, independent of the concurrency cap.
+3. **Both fixes are real, tested, and correct — and a second live run after
+   both were in place still failed at a similar rate** (a different mix of
+   providers succeeded each time, ruling out a caching bug — it's genuine
+   variable throttling). The Vercel Gateway error message is explicit:
+   *"Free tier requests on this model are rate-limited. Upgrade to paid
+   credits for unrestricted access."* Adjusting a spend cap or rate-limit
+   setting in the dashboard is not the same as an actual paid credit
+   top-up — only the latter appears to lift this restriction. If you've
+   confirmed a real top-up (not just a cap change) and still see this,
+   the next lever is a much longer `pacingMs` (multi-second, via
+   `probe(business, { pacingMs: 3000 })`), trading a slower `corpus:run`
+   for reliability — worth testing deliberately, once, rather than
+   re-running the default repeatedly.
+
+Response caching (`packages/ai-probe/src/index.ts`, `cacheTtlSeconds`,
+default 24h via Vercel AI Gateway's `cacheControl` header) means none of
+this costs *additional* credit on identical re-runs within the cache
+window — the failures above are all first-attempt, uncached calls.
 
 ## Security
 
