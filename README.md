@@ -40,8 +40,8 @@ npx playwright install chromium   # one-time, for Scanner
 
 npm run test:scanner       # 76 tests, fast (frozen fixtures, no network)
 npm run test:scoring       # 134 tests, fast, fully deterministic
-npm run test:ai-probe      # 24 tests, fast (mocked network, no real API calls)
-npm run test:integration   # 1 test, ~3 min, hits the live corpus URLs
+npm run test:ai-probe      # 30 tests, fast (mocked network, no real API calls)
+npm run test:integration   # 5 tests, ~3 min (1 live pipeline test + 4 fast reportTemplate tests)
 npm test                   # all four, in order
 
 npm run --workspace=@aiv/scanner corpus:run    # re-scan the live corpus,
@@ -61,6 +61,59 @@ hits the real Vercel AI Gateway and needs `.env.local` with
 `AI_GATEWAY_API_KEY` (see "AI-Probe setup" below) — that fixture set hasn't
 been generated yet (see "Known limitations" below). The integration test is
 the one place that always hits the network, by design.
+
+## Auditing a real website
+
+This is the actual client-facing entry point — everything else in this repo
+exists to support it. Two modes:
+
+```bash
+# Free, technical-only audit (Scanner + Scoring). No setup beyond "npm install".
+npm run audit -- https://client-site.com/
+
+# Full audit, adds AI-Probe (real ChatGPT/Claude/Gemini/Perplexity queries —
+# spends real credit, needs AI-Probe setup below). All three business flags
+# are required together; omit all three to fall back to the free mode above.
+npm run audit -- https://client-site.com/ \
+  --business-name "Client Business Name" \
+  --business-category "plumber" \
+  --business-city "Boise" \
+  --business-region "ID"
+```
+
+Either way you get: a live scan, a score, a ranked fix list, an illustrative
+business-impact projection, and an HTML report written to
+`integration/reports/<slug>-latest.html` — open that file in a browser. Every
+run also appends to `integration/history/<slug>.json`, so re-running the same
+URL later automatically grows a score-over-time trend chart in the report.
+
+**This is a normal Node project — it doesn't need VS Code, this chat, or any
+particular terminal.** The whole thing lives at whatever path you cloned this
+repo to. To run it from anywhere, independent of any one machine or editor:
+
+```bash
+git clone git@github.com:saurab200/OPTWEB-agents.git
+cd OPTWEB-agents
+npm install
+npx playwright install chromium   # one-time
+npm run audit -- https://client-site.com/
+```
+
+That's the whole setup. Any terminal on any machine with Node installed can
+run it — Terminal.app, iTerm, a server, a scheduled cron job, whatever. If
+you want a one-word command from any directory instead of `cd`-ing in first,
+add an alias:
+
+```bash
+echo 'alias aiv-audit="npm run audit --prefix /absolute/path/to/OPTWEB-agents --"' >> ~/.zshrc
+source ~/.zshrc
+aiv-audit https://client-site.com/
+```
+
+**Cost note:** the free mode above costs nothing and never touches a paid
+API. Only add the `--business-*` flags when you actually want the AI-visibility
+check for a specific client — see `CLAUDE.md` for the full credit-discipline
+rules this repo follows (caching, pacing, no wasteful re-runs).
 
 ## AI-Probe setup
 

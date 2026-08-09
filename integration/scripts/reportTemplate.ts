@@ -1,4 +1,4 @@
-import type { Findings, Scorecard } from "@aiv/contracts";
+import type { Findings, ProbeResult, Scorecard } from "@aiv/contracts";
 import {
   type ImpactEstimate,
   SCHEMA_MAX,
@@ -6,11 +6,15 @@ import {
   CRAWLER_ACCESS_MAX,
   ACCESSIBILITY_MAX,
   EXTRACTABILITY_MAX,
+  AI_VISIBILITY_MAX,
 } from "@aiv/scoring";
 
 export interface HistoryPoint {
   timestamp: string;
   total_score: number;
+  /** 100 or 120 depending on whether that run included an AI-Probe result — kept per-point since a
+   * business's history can mix probed and unprobed runs (probing is opt-in, costs real credit). */
+  total_score_max: number;
 }
 
 export interface ReportData {
@@ -91,19 +95,107 @@ function categoryBars(current: Scorecard, potential: Scorecard): string {
   }).join("\n");
 }
 
-function scoreRing(score: number, label: string, colorVar: string): string {
+/**
+ * ai_visibility gets its own row, not a slot in categoryBars' current-vs-
+ * potential comparison: per the documented judgment call in
+ * packages/scoring/src/rubric/aiVisibility.ts, there's no way to simulate
+ * "what would ai_visibility be if fixed" the way the other five categories
+ * can be projected from Findings alone — the only real path is closing
+ * those five gaps and re-probing later to see if it moved. Showing a fake
+ * "potential" bar here would be exactly the kind of fabricated precision
+ * this whole project's guardrails exist to prevent.
+ */
+function aiVisibilityRow(current: Scorecard): string {
+  const score = current.category_scores.ai_visibility;
+  if (score === undefined) return "";
+  const pct = (score / AI_VISIBILITY_MAX) * 100;
+  return `
+    <div class="bar-row bar-row-single">
+      <div class="bar-row-label">AI visibility (real probe)</div>
+      <div class="bar-track-group">
+        <div class="bar-track">
+          <div class="bar-fill bar-current" style="width:${pct}%" title="${score}/${AI_VISIBILITY_MAX} points"></div>
+        </div>
+      </div>
+      <div class="bar-row-values">
+        <span class="tabular">${score}</span><span class="bar-row-max">/${AI_VISIBILITY_MAX}</span>
+        <span class="bar-row-note">no simulated potential — re-probe after fixes</span>
+      </div>
+    </div>`;
+}
+
+function probeResultsSection(probe: ProbeResult | undefined): string {
+  if (!probe) return "";
+  const pct = (probe.overall_mention_rate * 100).toFixed(0);
+  const rows = probe.provider_summaries
+    .map((s) => {
+      const errored = probe.attempts.filter((a) => a.provider === s.provider && a.error !== null).length;
+      const rate = (s.mention_rate * 100).toFixed(0);
+      return `
+        <tr>
+          <td style="text-transform:capitalize">${esc(s.provider)}</td>
+          <td class="tabular">${s.times_mentioned}/${s.queries_run}</td>
+          <td class="tabular">${rate}%</td>
+          <td class="tabular">${s.avg_mention_position ?? "—"}</td>
+          <td class="tabular">${errored > 0 ? `${errored} failed` : "—"}</td>
+        </tr>`;
+    })
+    .join("\n");
+
+  const competitorCounts = new Map<string, number>();
+  for (const a of probe.attempts) {
+    for (const c of a.competitors_mentioned) {
+      competitorCounts.set(c, (competitorCounts.get(c) ?? 0) + 1);
+    }
+  }
+  const topCompetitors = [...competitorCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  return `
+    <section class="section">
+      <h2>AI visibility — real probe results</h2>
+      <p class="section-sub">
+        ${esc(probe.business.name)} was mentioned in <span class="tabular">${pct}%</span> of
+        ${probe.attempts.length} real queries sent to ChatGPT, Claude, Gemini, and Perplexity
+        (probe confidence: ${probe.probe_confidence}${probe.probe_issues.length > 0 ? `, ${probe.probe_issues.length} provider call(s) failed — see below` : ""}).
+      </p>
+      <div class="assumptions-table-wrap">
+        <table class="assumptions-table">
+          <thead>
+            <tr><th>Provider</th><th>Mentioned</th><th>Rate</th><th>Avg. position</th><th>Errors</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${
+        topCompetitors.length > 0
+          ? `<p class="section-sub" style="margin-top:16px;margin-bottom:0;">Competitors named instead: ${topCompetitors.map(([name, n]) => `${esc(name)} (${n}×)`).join(", ")}</p>`
+          : ""
+      }
+      ${
+        probe.probe_issues.length > 0
+          ? `<div class="disclaimer" style="margin-top:16px;"><span>⚠</span><span><strong>${probe.probe_issues.length} call(s) failed</strong> — usually AI Gateway free-tier rate limiting, not a real "not mentioned" signal. probe_confidence (${probe.probe_confidence}) already reflects this; treat this run's numbers as directional, not final, until a cleaner re-probe is available.</span></div>`
+          : ""
+      }
+    </section>`;
+}
+
+function scoreRing(score: number, max: number, label: string, colorVar: string): string {
   const r = 54;
   const circumference = 2 * Math.PI * r;
-  const offset = circumference * (1 - score / 100);
+  // Bug fixed here: this used to divide by a hardcoded 100, which drew a
+  // visually wrong ring (e.g. 90/120 rendered as if it were 90%) as soon as
+  // an AI-Probe result extended the ceiling to 120. Always ratio against
+  // the real max for this specific Scorecard.
+  const offset = circumference * (1 - score / max);
   return `
     <div class="ring-wrap">
-      <svg viewBox="0 0 128 128" class="ring-svg" role="img" aria-label="${esc(label)}: ${score} out of 100">
+      <svg viewBox="0 0 128 128" class="ring-svg" role="img" aria-label="${esc(label)}: ${score} out of ${max}">
         <circle cx="64" cy="64" r="${r}" class="ring-track" />
         <circle cx="64" cy="64" r="${r}" class="ring-fill" style="stroke:${colorVar};stroke-dasharray:${circumference};stroke-dashoffset:${offset}" />
       </svg>
       <div class="ring-center">
         <div class="ring-score tabular">${score}</div>
-        <div class="ring-of">/100</div>
+        <div class="ring-of">/${max}</div>
       </div>
     </div>`;
 }
@@ -129,7 +221,7 @@ function trendSparkline(history: HistoryPoint[]): string {
   const dots = points
     .map(
       (pt, i) =>
-        `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${i === points.length - 1 ? 4 : 2.5}" class="${i === points.length - 1 ? "trend-dot-current" : "trend-dot"}"><title>${fmtDate(pt.p.timestamp)}: ${pt.p.total_score}/100</title></circle>`,
+        `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${i === points.length - 1 ? 4 : 2.5}" class="${i === points.length - 1 ? "trend-dot-current" : "trend-dot"}"><title>${fmtDate(pt.p.timestamp)}: ${pt.p.total_score}/${pt.p.total_score_max}</title></circle>`,
     )
     .join("");
   return `
@@ -407,6 +499,9 @@ export function buildReportBody(data: ReportData): string {
 
   .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 0.78rem; color: var(--ink-muted); }
 
+  .bar-row-single .bar-track-group { flex-direction: row; }
+  .bar-row-note { display: block; font-size: 0.72rem; margin-top: 2px; color: var(--ink-muted); }
+
   @media (max-width: 620px) {
     .bar-row { grid-template-columns: 1fr; gap: 6px; }
     .bar-row-values { text-align: left; }
@@ -426,10 +521,10 @@ export function buildReportBody(data: ReportData): string {
   </header>
 
   <section class="hero">
-    ${scoreRing(current.total_score, "Current AI visibility score", "var(--accent-current)")}
+    ${scoreRing(current.total_score, current.total_score_max, "Current AI visibility score", "var(--accent-current)")}
     <div class="hero-text">
-      <p class="hero-headline">Scoring <span class="tabular">${current.total_score}</span> of 100 on AI visibility today.</p>
-      <p class="hero-sub">Measures how easily an AI answer engine (ChatGPT, Claude, Perplexity, Google AI Overviews) can find, trust, and cite this page — structured data, crawler access, rendering, accessibility, and plain-text extractability.</p>
+      <p class="hero-headline">Scoring <span class="tabular">${current.total_score}</span> of <span class="tabular">${current.total_score_max}</span> on AI visibility today.</p>
+      <p class="hero-sub">Measures how easily an AI answer engine (ChatGPT, Claude, Perplexity, Google AI Overviews) can find, trust, and cite this page — structured data, crawler access, rendering, accessibility, plain-text extractability${current.raw_probe ? ", and real AI-probe results" : ""}.</p>
       <div class="hero-gap">
         Fixing every flaw found in this scan raises the score to <span class="tabular">${potential.total_score}</span> — a gap of <span class="tabular">${gap}</span> points currently left on the table.
       </div>
@@ -444,7 +539,10 @@ export function buildReportBody(data: ReportData): string {
       <span class="legend-item"><span class="legend-swatch potential"></span>Potential (flaws fixed)</span>
     </div>
     ${categoryBars(current, potential)}
+    ${aiVisibilityRow(current)}
   </section>
+
+  ${probeResultsSection(current.raw_probe)}
 
   <section class="section">
     <h2>Recommended fixes, ranked</h2>
@@ -510,7 +608,7 @@ export function buildReportBody(data: ReportData): string {
   </section>
 
   <footer class="footer">
-    Generated by the Scanner + Scoring pipeline · scan confidence: ${current.scan_confidence} ·
+    Generated by the Scanner + Scoring${current.raw_probe ? " + AI-Probe" : ""} pipeline · scan confidence: ${current.scan_confidence} ·
     ${findings.scan_issues.length > 0 ? `${findings.scan_issues.length} scan issue(s) logged` : "no scan issues"}
   </footer>
 </div>`;
