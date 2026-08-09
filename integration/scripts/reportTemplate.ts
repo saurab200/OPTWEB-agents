@@ -22,7 +22,14 @@ export interface ReportData {
   history: HistoryPoint[]; // includes this run as the last point
 }
 
-const CATEGORY_META: { key: keyof Scorecard["category_scores"]; label: string; max: number }[] = [
+// Deliberately excludes ai_visibility: it's optional on CategoryScores (only
+// present when score() was called with a ProbeResult), and this report
+// template doesn't render it yet — see README follow-up note. Typing this
+// as the 5 always-present base keys (not keyof CategoryScores) keeps that
+// exclusion enforced by the compiler, not just by convention.
+type BaseCategoryKey = "schema" | "rendering" | "crawler_access" | "accessibility" | "extractability";
+
+const CATEGORY_META: { key: BaseCategoryKey; label: string; max: number }[] = [
   { key: "schema", label: "Structured data (schema)", max: SCHEMA_MAX },
   { key: "rendering", label: "Rendering accessibility", max: RENDERING_MAX },
   { key: "crawler_access", label: "AI crawler access", max: CRAWLER_ACCESS_MAX },

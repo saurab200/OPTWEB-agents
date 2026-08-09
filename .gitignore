@@ -14,3 +14,5 @@ graphify-out/
 
 # Claude Code session-local state, not project source.
 .claude/
+.vercel
+.env*

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "positive-control-franklin-bbq",
+    "business": { "name": "Franklin Barbecue", "category": "BBQ restaurant", "city": "Austin", "region": "TX" },
+    "notes": "Real, globally-famous business (same one used in Scanner's corpus as partial-local-business-schema). Expected: high mention rate across providers."
+  },
+  {
+    "id": "negative-control-fictional",
+    "business": { "name": "Zorbaxian Plumbing Experts", "category": "plumber", "city": "Boise", "region": "ID" },
+    "notes": "Deliberately fictional business name with no real-world presence — mirrors Scanner's .invalid-domain deterministic-negative pattern. Expected: zero mentions."
+  }
+]

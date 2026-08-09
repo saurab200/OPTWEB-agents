@@ -11,8 +11,9 @@
     "build": "npm run build --workspaces --if-present",
     "test:scanner": "npm run test --workspace=@aiv/scanner",
     "test:scoring": "npm run test --workspace=@aiv/scoring",
+    "test:ai-probe": "npm run test --workspace=@aiv/ai-probe",
     "test:integration": "npm run test --workspace=@aiv/integration",
-    "test": "npm run test:scanner && npm run test:scoring && npm run test:integration",
+    "test": "npm run test:scanner && npm run test:scoring && npm run test:ai-probe && npm run test:integration",
     "audit": "npm run build && tsx integration/scripts/audit.ts"
   },
   "devDependencies": {
