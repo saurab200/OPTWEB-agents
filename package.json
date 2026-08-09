@@ -1,0 +1,23 @@
+{
+  "name": "ai-visibility-audit",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "integration"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test:scanner": "npm run test --workspace=@aiv/scanner",
+    "test:scoring": "npm run test --workspace=@aiv/scoring",
+    "test:integration": "npm run test --workspace=@aiv/integration",
+    "test": "npm run test:scanner && npm run test:scoring && npm run test:integration",
+    "audit": "npm run build && tsx integration/scripts/audit.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
+    "@types/node": "^22.9.0"
+  }
+}

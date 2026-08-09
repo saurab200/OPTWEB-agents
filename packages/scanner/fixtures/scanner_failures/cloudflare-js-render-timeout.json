@@ -1,0 +1,9 @@
+{
+  "id": "cloudflare-js-render-timeout",
+  "url": "https://www.cloudflare.com/",
+  "discovered": "2026-08-07",
+  "symptom": "JS-enabled render timed out (networkidle never reached, likely due to persistent analytics/websocket connections) while the JS-disabled render succeeded with real content. This produced js_on_word_count: 0 and js_off_word_count: 1109 — a physically inconsistent pair (JS-enabled render should never show less content than JS-disabled) that drove js_dependent_content_pct to a misleading 0%, silently implying full JS-independence when in fact the JS-enabled measurement simply failed.",
+  "classification": "clearly-wrong-extraction, not a crash",
+  "fix": "packages/scanner/src/extractors/rendering.ts now tracks success/failure of each render independently. When one side fails and the other succeeds, the failed side is backfilled with the successful side's word count (conservative 0%-dependency assumption) instead of leaving a fabricated 0 that produces an internally inconsistent pair. scan_issues still records the underlying render failure and scan_confidence is downgraded accordingly — the guardrail is 'never silently return a confidently-wrong Findings object,' and a mismatched on/off pair was exactly that.",
+  "regression_check": "Full corpus re-run after the fix; no other corpus entry's rendering findings changed, and this failure mode is expected to resolve to js_dependent_content_pct: 0 with scan_issues populated and scan_confidence downgraded (not crash, not silently wrong)."
+}

@@ -1,0 +1,91 @@
+{
+  "url": "https://en.wikipedia.org/wiki/Web_scraping",
+  "scanned_at": "2026-08-07T09:43:41.055Z",
+  "schema": {
+    "local_business": {
+      "present": false,
+      "type_found": null,
+      "fields_present": [],
+      "fields_missing": [
+        "name",
+        "address",
+        "telephone",
+        "openingHoursSpecification",
+        "priceRange",
+        "image",
+        "url",
+        "description",
+        "geo"
+      ]
+    },
+    "service": {
+      "present": false,
+      "fields_present": [],
+      "fields_missing": [
+        "name",
+        "serviceType",
+        "provider",
+        "areaServed",
+        "description",
+        "offers"
+      ]
+    },
+    "faq_page": {
+      "present": false,
+      "question_count": 0
+    },
+    "review_aggregate": {
+      "present": false,
+      "fields_present": [],
+      "fields_missing": [
+        "ratingValue",
+        "reviewCount",
+        "bestRating",
+        "itemReviewed"
+      ]
+    }
+  },
+  "rendering": {
+    "js_dependent_content_pct": 0.55,
+    "js_on_word_count": 4325,
+    "js_off_word_count": 4301
+  },
+  "crawler_access": {
+    "robots_txt_found": true,
+    "llms_txt_found": false,
+    "bot_rules": {
+      "GPTBot": "allowed",
+      "OAI-SearchBot": "allowed",
+      "ChatGPT-User": "allowed",
+      "ClaudeBot": "allowed",
+      "Claude-Web": "allowed",
+      "PerplexityBot": "allowed",
+      "Google-Extended": "allowed",
+      "Bingbot": "allowed",
+      "anthropic-ai": "allowed"
+    }
+  },
+  "accessibility": {
+    "landmark_coverage_pct": 100,
+    "labeled_interactive_pct": 99.78,
+    "heading_hierarchy_valid": true,
+    "h1_count": 1
+  },
+  "core_web_vitals": {
+    "lcp_ms": 1514,
+    "cls": 0.716,
+    "inp_ms": null
+  },
+  "content_extractability": {
+    "avg_paragraph_word_count": 64.77,
+    "qa_formatted_blocks": 0,
+    "key_facts_in_plain_text": {
+      "hours": false,
+      "address": true,
+      "phone": false,
+      "services": false
+    }
+  },
+  "scan_confidence": "high",
+  "scan_issues": []
+}

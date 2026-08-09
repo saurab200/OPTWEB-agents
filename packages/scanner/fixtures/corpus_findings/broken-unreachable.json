@@ -1,0 +1,95 @@
+{
+  "url": "https://this-domain-does-not-exist-aiv-corpus-test.invalid/",
+  "scanned_at": "2026-08-07T09:45:32.846Z",
+  "schema": {
+    "local_business": {
+      "present": false,
+      "type_found": null,
+      "fields_present": [],
+      "fields_missing": [
+        "name",
+        "address",
+        "telephone",
+        "openingHoursSpecification",
+        "priceRange",
+        "image",
+        "url",
+        "description",
+        "geo"
+      ]
+    },
+    "service": {
+      "present": false,
+      "fields_present": [],
+      "fields_missing": [
+        "name",
+        "serviceType",
+        "provider",
+        "areaServed",
+        "description",
+        "offers"
+      ]
+    },
+    "faq_page": {
+      "present": false,
+      "question_count": 0
+    },
+    "review_aggregate": {
+      "present": false,
+      "fields_present": [],
+      "fields_missing": [
+        "ratingValue",
+        "reviewCount",
+        "bestRating",
+        "itemReviewed"
+      ]
+    }
+  },
+  "rendering": {
+    "js_dependent_content_pct": 0,
+    "js_on_word_count": 0,
+    "js_off_word_count": 0
+  },
+  "crawler_access": {
+    "robots_txt_found": false,
+    "llms_txt_found": false,
+    "bot_rules": {
+      "GPTBot": "unspecified",
+      "OAI-SearchBot": "unspecified",
+      "ChatGPT-User": "unspecified",
+      "ClaudeBot": "unspecified",
+      "Claude-Web": "unspecified",
+      "PerplexityBot": "unspecified",
+      "Google-Extended": "unspecified",
+      "Bingbot": "unspecified",
+      "anthropic-ai": "unspecified"
+    }
+  },
+  "accessibility": {
+    "landmark_coverage_pct": 0,
+    "labeled_interactive_pct": 0,
+    "heading_hierarchy_valid": false,
+    "h1_count": 0
+  },
+  "core_web_vitals": {
+    "lcp_ms": null,
+    "cls": null,
+    "inp_ms": null
+  },
+  "content_extractability": {
+    "avg_paragraph_word_count": 0,
+    "qa_formatted_blocks": 0,
+    "key_facts_in_plain_text": {
+      "hours": false,
+      "address": false,
+      "phone": false,
+      "services": false
+    }
+  },
+  "scan_confidence": "low",
+  "scan_issues": [
+    "Page load failed: page.goto: net::ERR_NAME_NOT_RESOLVED at https://this-domain-does-not-exist-aiv-corpus-test.invalid/\nCall log:\n  - navigating to \"https://this-domain-does-not-exist-aiv-corpus-test.invalid/\", waiting until \"load\"\n",
+    "JS-enabled render failed: page.goto: net::ERR_NAME_NOT_RESOLVED at https://this-domain-does-not-exist-aiv-corpus-test.invalid/\nCall log:\n  - navigating to \"https://this-domain-does-not-exist-aiv-corpus-test.invalid/\", waiting until \"networkidle\"\n",
+    "JS-disabled render failed: page.goto: net::ERR_NAME_NOT_RESOLVED at https://this-domain-does-not-exist-aiv-corpus-test.invalid/\nCall log:\n  - navigating to \"https://this-domain-does-not-exist-aiv-corpus-test.invalid/\", waiting until \"load\"\n"
+  ]
+}

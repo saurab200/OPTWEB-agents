@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "noEmit": true
+  },
+  "include": ["test", "scripts"],
+  "references": [
+    { "path": "../packages/contracts" },
+    { "path": "../packages/scanner" },
+    { "path": "../packages/scoring" }
+  ]
+}

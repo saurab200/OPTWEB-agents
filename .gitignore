@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+
+# Generated at runtime by `npm run audit` — timestamped snapshots and a
+# growing history log, not source. fixtures/corpus_findings/*.json remains
+# the one deliberately-committed generated artifact (see README).
+integration/reports/
+integration/history/
+
+# Output from an unrelated local tool run, not part of this application.
+graphify-out/
+
+# Claude Code session-local state, not project source.
+.claude/

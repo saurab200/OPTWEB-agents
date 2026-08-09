@@ -1,0 +1,9 @@
+{
+  "id": "robots-multi-agent-grouping",
+  "url": "synthetic robots.txt fixture (pattern observed live on github.com/robots.txt style multi-agent blocks)",
+  "discovered": "2026-08-07",
+  "symptom": "For a robots.txt group with multiple consecutive 'User-agent:' lines sharing one rule set (e.g. 'User-agent: GPTBot\\nUser-agent: ClaudeBot\\nDisallow: /'), parseRobotsTxt created a spurious intermediate block ({agents:['gptbot'], rules:[]}) in addition to the correct combined block ({agents:['gptbot','claudebot'], rules:[disallow /]}). resolveBotStatus's .find() picked the first (empty-rules) match and reported GPTBot as 'allowed' when the real robots.txt disallows it.",
+  "classification": "clearly-wrong-extraction, caught by unit test before ever reaching production data",
+  "fix": "packages/scanner/src/extractors/crawlerAccess.ts: parseRobotsTxt rewritten to a simple two-phase state machine (collect agents, then collect rules; a User-agent line seen after a rule line starts a fresh group) instead of a lookup-or-create-block approach that could fork the same agent across two blocks.",
+  "regression_check": "test/crawlerAccess.test.ts > 'groups multiple consecutive User-agent lines sharing one rule set' pins this exact shape. Full scanner test suite and full corpus re-run after the fix; bot-blocking corpus entry (nytimes.com, which itself only uses single-agent-per-block groups) was unaffected."
+}

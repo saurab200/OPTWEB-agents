@@ -1,0 +1,93 @@
+{
+  "url": "https://www.linkedin.com/feed/",
+  "scanned_at": "2026-08-07T09:45:38.433Z",
+  "schema": {
+    "local_business": {
+      "present": false,
+      "type_found": null,
+      "fields_present": [],
+      "fields_missing": [
+        "name",
+        "address",
+        "telephone",
+        "openingHoursSpecification",
+        "priceRange",
+        "image",
+        "url",
+        "description",
+        "geo"
+      ]
+    },
+    "service": {
+      "present": false,
+      "fields_present": [],
+      "fields_missing": [
+        "name",
+        "serviceType",
+        "provider",
+        "areaServed",
+        "description",
+        "offers"
+      ]
+    },
+    "faq_page": {
+      "present": false,
+      "question_count": 0
+    },
+    "review_aggregate": {
+      "present": false,
+      "fields_present": [],
+      "fields_missing": [
+        "ratingValue",
+        "reviewCount",
+        "bestRating",
+        "itemReviewed"
+      ]
+    }
+  },
+  "rendering": {
+    "js_dependent_content_pct": 0,
+    "js_on_word_count": 56,
+    "js_off_word_count": 56
+  },
+  "crawler_access": {
+    "robots_txt_found": true,
+    "llms_txt_found": false,
+    "bot_rules": {
+      "GPTBot": "disallowed",
+      "OAI-SearchBot": "allowed",
+      "ChatGPT-User": "disallowed",
+      "ClaudeBot": "disallowed",
+      "Claude-Web": "disallowed",
+      "PerplexityBot": "disallowed",
+      "Google-Extended": "disallowed",
+      "Bingbot": "allowed",
+      "anthropic-ai": "disallowed"
+    }
+  },
+  "accessibility": {
+    "landmark_coverage_pct": 25,
+    "labeled_interactive_pct": 90.48,
+    "heading_hierarchy_valid": true,
+    "h1_count": 0
+  },
+  "core_web_vitals": {
+    "lcp_ms": null,
+    "cls": null,
+    "inp_ms": null
+  },
+  "content_extractability": {
+    "avg_paragraph_word_count": 3.08,
+    "qa_formatted_blocks": 0,
+    "key_facts_in_plain_text": {
+      "hours": false,
+      "address": false,
+      "phone": false,
+      "services": false
+    }
+  },
+  "scan_confidence": "medium",
+  "scan_issues": [
+    "Core Web Vitals extraction failed: Lighthouse run timed out"
+  ]
+}

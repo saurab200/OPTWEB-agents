@@ -1,0 +1,19 @@
+{
+  "name": "@aiv/integration",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aiv/contracts": "*",
+    "@aiv/scanner": "*",
+    "@aiv/scoring": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
+    "@types/node": "^22.9.0"
+  }
+}

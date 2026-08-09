@@ -1,0 +1,92 @@
+{
+  "url": "https://franklinbbq.com/",
+  "scanned_at": "2026-08-07T09:44:30.144Z",
+  "schema": {
+    "local_business": {
+      "present": true,
+      "type_found": "LocalBusiness",
+      "fields_present": [
+        "name",
+        "address",
+        "image"
+      ],
+      "fields_missing": [
+        "telephone",
+        "openingHoursSpecification",
+        "priceRange",
+        "url",
+        "description",
+        "geo"
+      ]
+    },
+    "service": {
+      "present": false,
+      "fields_present": [],
+      "fields_missing": [
+        "name",
+        "serviceType",
+        "provider",
+        "areaServed",
+        "description",
+        "offers"
+      ]
+    },
+    "faq_page": {
+      "present": false,
+      "question_count": 0
+    },
+    "review_aggregate": {
+      "present": false,
+      "fields_present": [],
+      "fields_missing": [
+        "ratingValue",
+        "reviewCount",
+        "bestRating",
+        "itemReviewed"
+      ]
+    }
+  },
+  "rendering": {
+    "js_dependent_content_pct": 8.32,
+    "js_on_word_count": 457,
+    "js_off_word_count": 419
+  },
+  "crawler_access": {
+    "robots_txt_found": true,
+    "llms_txt_found": false,
+    "bot_rules": {
+      "GPTBot": "allowed",
+      "OAI-SearchBot": "allowed",
+      "ChatGPT-User": "allowed",
+      "ClaudeBot": "allowed",
+      "Claude-Web": "allowed",
+      "PerplexityBot": "allowed",
+      "Google-Extended": "allowed",
+      "Bingbot": "allowed",
+      "anthropic-ai": "allowed"
+    }
+  },
+  "accessibility": {
+    "landmark_coverage_pct": 100,
+    "labeled_interactive_pct": 93.55,
+    "heading_hierarchy_valid": false,
+    "h1_count": 2
+  },
+  "core_web_vitals": {
+    "lcp_ms": 16020,
+    "cls": 0,
+    "inp_ms": null
+  },
+  "content_extractability": {
+    "avg_paragraph_word_count": 19.11,
+    "qa_formatted_blocks": 0,
+    "key_facts_in_plain_text": {
+      "hours": true,
+      "address": true,
+      "phone": true,
+      "services": false
+    }
+  },
+  "scan_confidence": "high",
+  "scan_issues": []
+}

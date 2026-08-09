@@ -1,0 +1,56 @@
+[
+  {
+    "id": "baseline-minimal",
+    "url": "https://example.com/",
+    "category": "minimal static page, no schema, no JS dependency",
+    "notes": "IANA reserved example domain. Single paragraph of static HTML, no JSON-LD, no client rendering."
+  },
+  {
+    "id": "content-heavy-ssr",
+    "url": "https://en.wikipedia.org/wiki/Web_scraping",
+    "category": "large server-rendered text content, no LocalBusiness schema",
+    "notes": "Long-form article, fully present without JS, no local-business-relevant structured data."
+  },
+  {
+    "id": "js-heavy-spa",
+    "url": "https://excalidraw.com/",
+    "category": "JS-dependent single-page app",
+    "notes": "Canvas-based drawing app; almost all visible content is client-rendered."
+  },
+  {
+    "id": "accessibility-reference",
+    "url": "https://www.w3.org/WAI/ARIA/apg/patterns/accordion/examples/accordion/",
+    "category": "accessibility-optimized reference page",
+    "notes": "W3C ARIA Authoring Practices example page; expected to have strong landmark/heading structure."
+  },
+  {
+    "id": "well-optimized-commercial",
+    "url": "https://stripe.com/",
+    "category": "fast, well-structured commercial site",
+    "notes": "Has Organization/WebSite JSON-LD (not LocalBusiness — correctly not counted as one)."
+  },
+  {
+    "id": "partial-local-business-schema",
+    "url": "https://franklinbbq.com/",
+    "category": "partial LocalBusiness schema",
+    "notes": "Real LocalBusiness JSON-LD with name/address/image present; telephone/priceRange/geo/description/openingHoursSpecification missing (site uses legacy 'openingHours' string, not the structured field we check)."
+  },
+  {
+    "id": "bot-blocking",
+    "url": "https://www.nytimes.com/",
+    "category": "explicit AI-crawler blocking via robots.txt",
+    "notes": "robots.txt disallows GPTBot, ClaudeBot, anthropic-ai, Google-Extended, PerplexityBot at the root."
+  },
+  {
+    "id": "broken-unreachable",
+    "url": "https://this-domain-does-not-exist-aiv-corpus-test.invalid/",
+    "category": "DNS failure / unreachable site",
+    "notes": ".invalid TLD is IANA-reserved to never resolve (RFC 2606) — deterministic page-load-failure regression case."
+  },
+  {
+    "id": "login-walled",
+    "url": "https://www.linkedin.com/feed/",
+    "category": "login wall",
+    "notes": "Unauthenticated request is redirected to a login/signup page; real content is inaccessible to the scanner."
+  }
+]
