@@ -9,6 +9,7 @@
   "references": [
     { "path": "../packages/contracts" },
     { "path": "../packages/scanner" },
-    { "path": "../packages/scoring" }
+    { "path": "../packages/scoring" },
+    { "path": "../packages/ai-probe" }
   ]
 }

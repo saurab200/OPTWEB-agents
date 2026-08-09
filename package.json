@@ -8,7 +8,7 @@
     "integration"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "tsc -b tsconfig.json",
     "test:scanner": "npm run test --workspace=@aiv/scanner",
     "test:scoring": "npm run test --workspace=@aiv/scoring",
     "test:ai-probe": "npm run test --workspace=@aiv/ai-probe",
