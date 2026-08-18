@@ -16,7 +16,7 @@ import {
   EXTRACTABILITY_MAX,
   AI_VISIBILITY_MAX,
 } from "@aiv/scoring";
-import { buildStandaloneHtml, buildReportBody, type HistoryPoint } from "./reportTemplate.js";
+import { buildStandaloneHtml, buildReportBody, type HistoryPoint, type CompetitorScore, type CtaConfig } from "./reportTemplate.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const historyDir = path.join(__dirname, "..", "history");
@@ -31,6 +31,16 @@ if (!url) {
   console.error("  --conversion 0.03    baseline conversion rate (default 0.03)");
   console.error("  --value 40           average value per converted customer (default 40)");
   console.error("  --years 3            years to project wasted-potential cost forward (default 3)");
+  console.error("");
+  console.error("  Report CTA (opt-in — all three required together, omit for a neutral no-urgency CTA):");
+  console.error("  --offer-label \"Free 15-minute fix walkthrough\"");
+  console.error("  --contact-href \"mailto:you@example.com\"");
+  console.error("  --contact-label \"Book my walkthrough\"");
+  console.error("  --slots 3 --slots-period \"this month\"   (optional pair — only real capacity constraints)");
+  console.error("");
+  console.error("  Competitive standing (opt-in):");
+  console.error("  --competitors-file competitors.json   JSON array of {name, url, total_score, total_score_max},");
+  console.error("                                         built by running this same audit against each competitor");
   console.error("");
   console.error("  AI-Probe (opt-in, spends real credit via Vercel AI Gateway — omit for a free,");
   console.error("  technical-only audit). All three business flags are required together:");
@@ -60,6 +70,87 @@ function stringFlag(name: string): string | undefined {
   return process.argv[idx + 1];
 }
 
+function intFlag(name: string): number | undefined {
+  const idx = process.argv.indexOf(`--${name}`);
+  if (idx === -1) return undefined;
+  const v = parseInt(process.argv[idx + 1], 10);
+  return Number.isFinite(v) ? v : undefined;
+}
+
+/**
+ * CTA config is opt-in and all-or-nothing for the three required fields
+ * (offer-label, contact-href, contact-label) — same pattern as
+ * resolveBusinessIdentity below. remainingSlots/slotsPeriod are an
+ * independent optional pair: giving only one is almost certainly a typo,
+ * not an intentional partial urgency claim, so it's rejected rather than
+ * silently rendering a slot count with no period (or vice versa).
+ */
+function resolveCta(): CtaConfig | undefined {
+  const offerLabel = stringFlag("offer-label");
+  const contactHref = stringFlag("contact-href");
+  const contactLabel = stringFlag("contact-label");
+  const remainingSlots = intFlag("slots");
+  const slotsPeriod = stringFlag("slots-period");
+
+  const core = [offerLabel, contactHref, contactLabel].filter((v) => v !== undefined);
+  if (core.length === 0 && remainingSlots === undefined && slotsPeriod === undefined) return undefined;
+  if (core.length > 0 && core.length < 3) {
+    console.error("\n--offer-label, --contact-href, and --contact-label must all be given together for a CTA.");
+    process.exit(1);
+  }
+  if ((remainingSlots !== undefined) !== (slotsPeriod !== undefined)) {
+    console.error("\n--slots and --slots-period must be given together, or not at all.");
+    process.exit(1);
+  }
+  if (core.length === 0) {
+    console.error("\n--slots/--slots-period need --offer-label, --contact-href, and --contact-label too.");
+    process.exit(1);
+  }
+  return {
+    offerLabel: offerLabel!,
+    contactHref: contactHref!,
+    contactLabel: contactLabel!,
+    ...(remainingSlots !== undefined ? { remainingSlots, slotsPeriod } : {}),
+  };
+}
+
+/**
+ * Real competitor scores, loaded from a JSON file the caller must produce
+ * themselves — e.g. by running this same `audit` command against each
+ * competitor's site and collecting the resulting scores. There is no
+ * network call or synthetic data generated here; a malformed or missing
+ * file fails loudly rather than silently omitting the section, so a typo'd
+ * path can't quietly ship a report with no competitive context.
+ */
+function resolveCompetitors(): CompetitorScore[] | undefined {
+  const file = stringFlag("competitors-file");
+  if (!file) return undefined;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(file, "utf-8"));
+  } catch (err) {
+    console.error(`\nFailed to read --competitors-file ${file}: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+  if (!Array.isArray(raw)) {
+    console.error(`\n--competitors-file must contain a JSON array of {name, url, total_score, total_score_max}.`);
+    process.exit(1);
+  }
+  for (const [i, entry] of raw.entries()) {
+    const e = entry as Record<string, unknown>;
+    if (
+      typeof e.name !== "string" ||
+      typeof e.url !== "string" ||
+      typeof e.total_score !== "number" ||
+      typeof e.total_score_max !== "number"
+    ) {
+      console.error(`\n--competitors-file entry ${i} is missing name/url/total_score/total_score_max.`);
+      process.exit(1);
+    }
+  }
+  return raw as CompetitorScore[];
+}
+
 const assumptions = {
   estimatedMonthlyAiReferrals: flag("referrals", DEFAULT_IMPACT_ASSUMPTIONS.estimatedMonthlyAiReferrals),
   baselineConversionRate: flag("conversion", DEFAULT_IMPACT_ASSUMPTIONS.baselineConversionRate),
@@ -86,6 +177,8 @@ function resolveBusinessIdentity(): BusinessIdentity | undefined {
 }
 
 const businessIdentity = resolveBusinessIdentity();
+const cta = resolveCta();
+const competitors = resolveCompetitors();
 
 function slugify(rawUrl: string): string {
   let base: string;
@@ -185,7 +278,7 @@ async function main(): Promise<void> {
   );
 
   mkdirSync(reportsDir, { recursive: true });
-  const reportData = { url, findings, current, potential, impact, history };
+  const reportData = { url, findings, current, potential, impact, history, competitors, cta };
   const timestamp = findings.scanned_at.replace(/[:.]/g, "-");
   const standaloneFile = path.join(reportsDir, `${slug}-${timestamp}.html`);
   const latestFile = path.join(reportsDir, `${slug}-latest.html`);

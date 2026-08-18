@@ -17,6 +17,42 @@ export interface HistoryPoint {
   total_score_max: number;
 }
 
+/**
+ * Real scores from other real, independently-scanned businesses in the same
+ * local market — e.g. the other Austin dentists in this batch. Every entry
+ * must come from an actual score() run against that business's actual site.
+ * Optional: when omitted, the competitive-standing section renders nothing
+ * rather than a fake "you're #1 in your area!" placeholder.
+ */
+export interface CompetitorScore {
+  name: string;
+  url: string;
+  total_score: number;
+  total_score_max: number;
+}
+
+/**
+ * Configuration for the closing call-to-action. Every field here is a real
+ * business fact (capacity, price, contact info) that must be supplied by
+ * the person running the audit — this template deliberately has no default
+ * price, slot count, or urgency copy, since inventing one would be exactly
+ * the fabricated-scarcity pattern this project's guardrails exist to avoid.
+ * When `cta` is omitted entirely, the section renders a neutral contact
+ * prompt with no urgency language at all.
+ */
+export interface CtaConfig {
+  /** e.g. "3" — must be a true current capacity constraint, not a made-up number. */
+  remainingSlots?: number;
+  /** e.g. "this month" — the real period the slot count above applies to. */
+  slotsPeriod?: string;
+  /** e.g. "Free 15-minute fix walkthrough" — the real next step being offered. */
+  offerLabel: string;
+  /** Where the CTA button/link points — a real booking link, mailto, or phone. */
+  contactHref: string;
+  /** Button text, e.g. "Book my walkthrough". */
+  contactLabel: string;
+}
+
 export interface ReportData {
   url: string;
   findings: Findings;
@@ -24,6 +60,8 @@ export interface ReportData {
   potential: Scorecard;
   impact: ImpactEstimate;
   history: HistoryPoint[]; // includes this run as the last point
+  competitors?: CompetitorScore[];
+  cta?: CtaConfig;
 }
 
 // Deliberately excludes ai_visibility: it's optional on CategoryScores (only
@@ -124,6 +162,51 @@ function aiVisibilityRow(current: Scorecard): string {
     </div>`;
 }
 
+/**
+ * Real competitor scores, ranked, with this business's own row highlighted.
+ * This is social-proof-as-loss-aversion: "you're behind 6 of 9" is a
+ * comparison a reader can't dismiss as sales copy, because it names real
+ * businesses scored by the identical rubric. Renders nothing if no real
+ * competitor data was supplied — no synthetic "average local competitor."
+ */
+function competitiveStandingSection(current: Scorecard, url: string, competitors: CompetitorScore[] | undefined): string {
+  if (!competitors || competitors.length === 0) return "";
+
+  const self: CompetitorScore = { name: "This business", url, total_score: current.total_score, total_score_max: current.total_score_max };
+  const all = [...competitors, self].sort((a, b) => b.total_score / b.total_score_max - a.total_score / a.total_score_max);
+  const rank = all.findIndex((c) => c.url === url) + 1;
+  const behindCount = all.filter((c) => c.url !== url && c.total_score / c.total_score_max > current.total_score / current.total_score_max).length;
+
+  const rows = all
+    .map((c, i) => {
+      const isSelf = c.url === url;
+      const pct = Math.round((c.total_score / c.total_score_max) * 100);
+      return `
+        <tr class="${isSelf ? "rank-row-self" : ""}">
+          <td class="tabular">${i + 1}</td>
+          <td>${isSelf ? `<strong>${esc(c.name)} (this business)</strong>` : esc(c.name)}</td>
+          <td class="tabular">${c.total_score}/${c.total_score_max}</td>
+          <td class="tabular">${pct}%</td>
+        </tr>`;
+    })
+    .join("\n");
+
+  return `
+    <section class="section">
+      <h2>Where this business ranks locally</h2>
+      <p class="section-sub">
+        Real scores from ${competitors.length} other real local competitor site${competitors.length === 1 ? "" : "s"}, same rubric, same scan.
+        ${behindCount > 0 ? `Currently ranked <strong>#${rank} of ${all.length}</strong> — behind ${behindCount} direct competitor${behindCount === 1 ? "" : "s"} in this market.` : `Currently ranked <strong>#${rank} of ${all.length}</strong> — ahead of the field today.`}
+      </p>
+      <div class="assumptions-table-wrap">
+        <table class="assumptions-table rank-table">
+          <thead><tr><th>Rank</th><th>Business</th><th>Score</th><th>%</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
 function probeResultsSection(probe: ProbeResult | undefined): string {
   if (!probe) return "";
   const pct = (probe.overall_mention_rate * 100).toFixed(0);
@@ -176,6 +259,47 @@ function probeResultsSection(probe: ProbeResult | undefined): string {
           ? `<div class="disclaimer" style="margin-top:16px;"><span>⚠</span><span><strong>${probe.probe_issues.length} call(s) failed</strong> — usually AI Gateway free-tier rate limiting, not a real "not mentioned" signal. probe_confidence (${probe.probe_confidence}) already reflects this; treat this run's numbers as directional, not final, until a cleaner re-probe is available.</span></div>`
           : ""
       }
+    </section>`;
+}
+
+/**
+ * Opens the report with the single sharpest real finding, not the score.
+ * Specificity is what makes a diagnostic read as credible rather than
+ * templated ("your telephone field is missing from LocalBusiness schema"
+ * lands harder than "your SEO could improve") — and stating it as a
+ * present-tense, ongoing condition ("AI assistants can't currently verify
+ * your phone number") is loss-aversion framing applied honestly: it's not
+ * inventing a future threat, it's naming what's already true today.
+ * Pulled from the real #1-ranked top_fixes entry — no separate judgment call.
+ */
+function hookSection(current: Scorecard, probe: ProbeResult | undefined): string {
+  const worst = current.top_fixes[0];
+  const namedCompetitor = probe?.attempts.flatMap((a) => a.competitors_mentioned)[0];
+
+  if (!worst && !namedCompetitor) {
+    return `
+    <section class="hook hook-neutral">
+      <p class="hook-eyebrow">Diagnostic summary</p>
+      <p class="hook-line">No critical gaps found — this scan didn't surface a single dominant issue to lead with.</p>
+    </section>`;
+  }
+
+  const lines: string[] = [];
+  if (namedCompetitor) {
+    lines.push(
+      `When AI assistants were asked a real local-search question, <strong>${esc(namedCompetitor)}</strong> was named instead of this business.`,
+    );
+  }
+  if (worst) {
+    lines.push(
+      `Right now: <strong>${esc(worst.description)}</strong> — a real, currently-open gap worth ${worst.points_recoverable} of the ${current.total_score_max} rubric points, unaddressed as of this scan.`,
+    );
+  }
+
+  return `
+    <section class="hook">
+      <p class="hook-eyebrow">What's happening right now</p>
+      ${lines.map((l) => `<p class="hook-line">${l}</p>`).join("\n")}
     </section>`;
 }
 
@@ -264,8 +388,63 @@ function topFixesList(scorecard: Scorecard): string {
     </ol>`;
 }
 
+/**
+ * The "what you could achieve" contrast panel — deliberately placed after
+ * the loss-framed sections (hook, competitive standing, cost-of-inaction)
+ * and before the fix list. Loss aversion opens the gap; this section shows
+ * the reader a concrete, rubric-grounded destination before handing them
+ * the fix list as the literal path there — turns dread into a plan.
+ */
+function visionSection(current: Scorecard, potential: Scorecard, impact: ImpactEstimate): string {
+  const gain = potential.total_score - current.total_score;
+  return `
+    <section class="section vision-section">
+      <h2>What "fixed" looks like</h2>
+      <p class="section-sub">Every number below is this same rubric, this same scan — just with the detected gaps closed.</p>
+      <div class="vision-grid">
+        <div class="vision-figure">
+          <div class="vision-figure-label">Score</div>
+          <div class="vision-figure-value">${current.total_score} <span class="vision-arrow">→</span> <span class="vision-target">${potential.total_score}</span><span class="vision-unit">/${potential.total_score_max}</span></div>
+        </div>
+        <div class="vision-figure">
+          <div class="vision-figure-label">Points recovered</div>
+          <div class="vision-figure-value vision-gain">+${gain}</div>
+        </div>
+        <div class="vision-figure">
+          <div class="vision-figure-label">Additional captured value / month</div>
+          <div class="vision-figure-value vision-gain">${fmtMoney(impact.wastedMonthlyValue)}</div>
+        </div>
+      </div>
+    </section>`;
+}
+
+/**
+ * Closing CTA. Urgency copy ("N slots left this ___") only renders when the
+ * caller supplies a real remainingSlots/slotsPeriod — omitting cta entirely,
+ * or omitting just those two fields, drops the urgency line rather than
+ * inventing scarcity. This is the one place fabrication would be easiest
+ * and most damaging to credibility, so it's the most tightly gated.
+ */
+function ctaSection(cta: CtaConfig | undefined): string {
+  if (!cta) {
+    return `
+    <section class="cta-panel">
+      <h2 class="cta-title">Want this fixed?</h2>
+      <p class="cta-sub">Reply to this report and we'll walk through the fix list together.</p>
+    </section>`;
+  }
+  const hasUrgency = cta.remainingSlots !== undefined && cta.slotsPeriod;
+  return `
+    <section class="cta-panel">
+      ${hasUrgency ? `<p class="cta-urgency">Only ${cta.remainingSlots} spot${cta.remainingSlots === 1 ? "" : "s"} open ${esc(cta.slotsPeriod!)}</p>` : ""}
+      <h2 class="cta-title">${esc(cta.offerLabel)}</h2>
+      <p class="cta-sub">The fix list above is ranked and ready — quickest wins first. This is the concrete next step to start closing the gap.</p>
+      <a class="cta-button" href="${esc(cta.contactHref)}">${esc(cta.contactLabel)}</a>
+    </section>`;
+}
+
 export function buildReportBody(data: ReportData): string {
-  const { url, findings, current, potential, impact, history } = data;
+  const { url, findings, current, potential, impact, history, competitors, cta } = data;
   const gap = potential.total_score - current.total_score;
 
   return `
@@ -502,6 +681,65 @@ export function buildReportBody(data: ReportData): string {
   .bar-row-single .bar-track-group { flex-direction: row; }
   .bar-row-note { display: block; font-size: 0.72rem; margin-top: 2px; color: var(--ink-muted); }
 
+  /* Hook */
+  .hook {
+    margin: 8px 0 0;
+    padding: 20px 24px;
+    background: var(--status-critical-bg);
+    border: 1px solid color-mix(in oklab, var(--status-critical) 35%, var(--border));
+    border-radius: 14px;
+  }
+  .hook-neutral { background: var(--surface); border-color: var(--border); }
+  .hook-eyebrow {
+    font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--status-critical); font-weight: 700; margin: 0 0 8px;
+  }
+  .hook-neutral .hook-eyebrow { color: var(--ink-muted); }
+  .hook-line { margin: 0 0 6px; font-size: 1.02rem; line-height: 1.45; }
+  .hook-line:last-child { margin-bottom: 0; }
+  .hook-line strong { font-weight: 700; }
+
+  /* Rank table */
+  .rank-table th, .rank-table td { text-align: left; }
+  .rank-table td.tabular, .rank-table th:nth-child(1) { text-align: left; }
+  .rank-row-self { background: color-mix(in oklab, var(--accent-current) 10%, transparent); }
+  .rank-row-self td { font-weight: 600; }
+
+  /* Vision panel */
+  .vision-section { border-top: 1px solid var(--border); }
+  .vision-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;
+  }
+  .vision-figure-label { font-size: 0.78rem; color: var(--ink-muted); margin-bottom: 4px; }
+  .vision-figure-value {
+    font-family: var(--font-mono); font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  .vision-arrow { color: var(--ink-muted); font-weight: 400; margin: 0 2px; }
+  .vision-target { color: var(--status-good); }
+  .vision-unit { font-size: 1rem; color: var(--ink-muted); }
+  .vision-gain { color: var(--status-good); }
+
+  /* CTA panel */
+  .cta-panel {
+    margin-top: 40px;
+    padding: clamp(28px, 5vw, 48px);
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 16px;
+    text-align: center;
+  }
+  .cta-urgency {
+    display: inline-block; margin: 0 0 14px; padding: 5px 14px; border-radius: 100px;
+    background: var(--status-critical); color: white; font-size: 0.78rem; font-weight: 700;
+    letter-spacing: 0.02em; text-transform: uppercase;
+  }
+  .cta-title { font-family: var(--font-display); font-size: 1.6rem; margin: 0 0 10px; color: var(--paper); }
+  .cta-sub { color: color-mix(in oklab, var(--paper) 70%, transparent); max-width: 50ch; margin: 0 auto 26px; font-size: 0.95rem; }
+  .cta-button {
+    display: inline-block; padding: 14px 32px; background: var(--paper); color: var(--ink);
+    border-radius: 100px; font-weight: 700; text-decoration: none; font-size: 0.95rem;
+  }
+
   @media (max-width: 620px) {
     .bar-row { grid-template-columns: 1fr; gap: 6px; }
     .bar-row-values { text-align: left; }
@@ -520,41 +758,26 @@ export function buildReportBody(data: ReportData): string {
     </div>
   </header>
 
+  ${hookSection(current, current.raw_probe)}
+
   <section class="hero">
     ${scoreRing(current.total_score, current.total_score_max, "Current AI visibility score", "var(--accent-current)")}
     <div class="hero-text">
       <p class="hero-headline">Scoring <span class="tabular">${current.total_score}</span> of <span class="tabular">${current.total_score_max}</span> on AI visibility today.</p>
       <p class="hero-sub">Measures how easily an AI answer engine (ChatGPT, Claude, Perplexity, Google AI Overviews) can find, trust, and cite this page — structured data, crawler access, rendering, accessibility, plain-text extractability${current.raw_probe ? ", and real AI-probe results" : ""}.</p>
       <div class="hero-gap">
-        Fixing every flaw found in this scan raises the score to <span class="tabular">${potential.total_score}</span> — a gap of <span class="tabular">${gap}</span> points currently left on the table.
+        ${current.total_score_max - current.total_score} of ${current.total_score_max} possible points are currently unclaimed — <span class="tabular">${gap}</span> of them recoverable from flaws this scan already found.
       </div>
     </div>
   </section>
 
-  <section class="section">
-    <h2>Current vs. potential, by category</h2>
-    <p class="section-sub">What this page scores today against what the same rubric would award if every detected gap were closed.</p>
-    <div class="legend">
-      <span class="legend-item"><span class="legend-swatch current"></span>Current</span>
-      <span class="legend-item"><span class="legend-swatch potential"></span>Potential (flaws fixed)</span>
-    </div>
-    ${categoryBars(current, potential)}
-    ${aiVisibilityRow(current)}
-  </section>
+  ${competitiveStandingSection(current, url, competitors)}
 
   ${probeResultsSection(current.raw_probe)}
 
-  <section class="section">
-    <h2>Recommended fixes, ranked</h2>
-    <p class="section-sub">Ranked by points recoverable × ease of implementation — quick wins surface first.</p>
-    ${topFixesList(current)}
-  </section>
-
-  ${trendSparkline(history)}
-
   <section class="impact-panel">
     <p class="impact-eyebrow">Business impact projection</p>
-    <h2 class="impact-title">What these flaws are estimated to cost</h2>
+    <h2 class="impact-title">What this gap is estimated to be costing, every month it stays open</h2>
     <p class="impact-sub">
       This is a scenario model, not a measurement — no tool can observe how many AI-driven
       customers a business actually loses. The figures below follow directly from the
@@ -564,24 +787,24 @@ export function buildReportBody(data: ReportData): string {
 
     <div class="impact-figures">
       <div class="impact-figure">
+        <div class="impact-figure-label">Wasted / month, right now</div>
+        <div class="impact-figure-value waste">${fmtMoney(impact.wastedMonthlyValue)}</div>
+      </div>
+      <div class="impact-figure">
+        <div class="impact-figure-label">Wasted / year at this rate</div>
+        <div class="impact-figure-value waste">${fmtMoney(impact.wastedAnnualValue)}</div>
+      </div>
+      <div class="impact-figure">
+        <div class="impact-figure-label">Wasted over ${impact.assumptions.projectionYears} years if unfixed</div>
+        <div class="impact-figure-value waste">${fmtMoney(impact.wastedProjectedValue)}</div>
+      </div>
+      <div class="impact-figure">
         <div class="impact-figure-label">Captured value / month (today)</div>
         <div class="impact-figure-value">${fmtMoney(impact.currentMonthlyValue)}</div>
       </div>
       <div class="impact-figure">
         <div class="impact-figure-label">Achievable value / month (fixed)</div>
         <div class="impact-figure-value gain">${fmtMoney(impact.potentialMonthlyValue)}</div>
-      </div>
-      <div class="impact-figure">
-        <div class="impact-figure-label">Wasted / month</div>
-        <div class="impact-figure-value waste">${fmtMoney(impact.wastedMonthlyValue)}</div>
-      </div>
-      <div class="impact-figure">
-        <div class="impact-figure-label">Wasted / year</div>
-        <div class="impact-figure-value waste">${fmtMoney(impact.wastedAnnualValue)}</div>
-      </div>
-      <div class="impact-figure">
-        <div class="impact-figure-label">Wasted over ${impact.assumptions.projectionYears} years if unfixed</div>
-        <div class="impact-figure-value waste">${fmtMoney(impact.wastedProjectedValue)}</div>
       </div>
     </div>
 
@@ -606,6 +829,29 @@ export function buildReportBody(data: ReportData): string {
       <span><strong>Not a measurement.</strong> "Capture rate = score ÷ 100" is a simplifying assumption, not a validated conversion model. Swap in this business's real AI-referral volume, conversion rate, and customer value to make this section trustworthy for a client presentation.</span>
     </div>
   </section>
+
+  <section class="section">
+    <h2>Current vs. potential, by category</h2>
+    <p class="section-sub">What this page scores today against what the same rubric would award if every detected gap were closed.</p>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-swatch current"></span>Current</span>
+      <span class="legend-item"><span class="legend-swatch potential"></span>Potential (flaws fixed)</span>
+    </div>
+    ${categoryBars(current, potential)}
+    ${aiVisibilityRow(current)}
+  </section>
+
+  ${visionSection(current, potential, impact)}
+
+  <section class="section">
+    <h2>The roadmap to close the gap</h2>
+    <p class="section-sub">Ranked by points recoverable × ease of implementation — quick wins surface first, so the first item here is the fastest real progress available.</p>
+    ${topFixesList(current)}
+  </section>
+
+  ${trendSparkline(history)}
+
+  ${ctaSection(cta)}
 
   <footer class="footer">
     Generated by the Scanner + Scoring${current.raw_probe ? " + AI-Probe" : ""} pipeline · scan confidence: ${current.scan_confidence} ·
