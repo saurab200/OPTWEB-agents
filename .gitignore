@@ -12,7 +12,9 @@ integration/history/
 # Output from an unrelated local tool run, not part of this application.
 graphify-out/
 
-# Claude Code session-local state, not project source.
-.claude/
+# Claude Code session-local state, not project source — but .claude/skills/
+# is committed project source (see .claude/skills/README.md).
+.claude/*
+!.claude/skills/
 .vercel
 .env*
