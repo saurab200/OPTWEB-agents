@@ -30,6 +30,10 @@ packages/
   ai-probe/    probe(business) -> ProbeResult (queries ChatGPT/Claude/Gemini/Perplexity via Vercel AI Gateway)
   scoring/     score(findings, probe?) -> Scorecard  (pure rubric, zero LLM calls)
 integration/   scan() -> score() piped across the full corpus, live
+apps/
+  web/         @aiv/web — Next.js frontend for the three-surface platform
+               (public landing, Client Portal, Internal Ops). UI-only,
+               backed by mock data for now — see apps/web/README.md.
 ```
 
 ## Running things

@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+:root {
+  --color-canvas: #0b0c10;
+  --color-canvas-raised: #101218;
+  --color-canvas-overlay: #15171f;
+  --color-structure: #f5f5f7;
+  --color-structure-muted: #a3a5ad;
+  --color-structure-faint: #6b6d76;
+  --color-accent: #e2b774;
+  --color-accent-soft: #f0d9ae;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
+  --color-success: #7fd8a4;
+  --color-warning: #e2b774;
+  --color-danger: #e08585;
+}
+
+@theme inline {
+  --color-canvas: var(--color-canvas);
+  --color-canvas-raised: var(--color-canvas-raised);
+  --color-canvas-overlay: var(--color-canvas-overlay);
+  --color-structure: var(--color-structure);
+  --color-structure-muted: var(--color-structure-muted);
+  --color-structure-faint: var(--color-structure-faint);
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-structure);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-canvas);
+}
+
+.glass {
+  background: rgba(245, 245, 247, 0.03);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-raised {
+  background: rgba(245, 245, 247, 0.045);
+  border: 1px solid var(--color-border-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.text-gradient-accent {
+  background: linear-gradient(120deg, var(--color-structure) 0%, var(--color-structure) 45%, var(--color-accent-soft) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.grid-fade-mask {
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 100%);
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
