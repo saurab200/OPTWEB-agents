@@ -1,7 +1,7 @@
 # AI Visibility Audit — Scanner + Scoring + AI-Probe
 
-Three independent agents (the first three of a planned 13-agent OPTWEB
-system — TOFU acquisition, MOFU diagnosis, BOFU fulfillment, Retention ops)
+Three independent agents (the first three of a planned 13 agent OPTWEB
+system  TOFU acquisition, MOFU diagnosis, BOFU fulfillment, Retention ops)
 that communicate through typed contracts:
 
 ```
